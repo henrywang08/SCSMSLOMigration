@@ -58,34 +58,73 @@ foreach ($slo in $SLOs)
     # It is not necessary for now.    
     # [threading.thread]::CurrentThread.CurrentCulture = 'en-US'
 
+
+# Create SLO object in SCSM 2019
         New-SCSMClassInstance -Class $sm19slaclass `
                             -Property $sm19sloproperty `
                             -ComputerName $sm19server
                          
-        
+# Get the created SLO object from SCSM 2019. Should add verification in case failed to create.         
         $sm19SLO = Get-SCSMClassInstance -Class $sm19slaclass | ? DisplayName -eq $slo.DisplayName
 
+# Get all related object instances from SCSM 2012 R2 for the migrating SLO
         $slorels = Get-SCSMRelationshipInstance -SourceInstance $slo -ComputerName $sm12server
+        
+<# The relationships from one SLO object. 
+
+$slorel | % {Get-SCSMRelationship -id $_.relationshipid}
+
+DisplayName : 
+Source      : System.SLA.Configuration
+Target      : System.SLA.WorkflowTarget
+
+DisplayName : Calendar
+Source      : System.SLA.Configuration
+Target      : System.Calendar
+
+DisplayName : Target
+Source      : System.SLA.Configuration
+Target      : System.SLA.Target
+
+DisplayName : Warning Threshold
+Source      : System.SLA.Configuration
+Target      : System.SLA.Target
+
+DisplayName : 
+Source      : System.SLA.Configuration
+Target      : System.SLA.Group
+
+DisplayName : Metric
+Source      : System.SLA.Configuration
+Target      : System.SLA.Metric
+
+#>
+        
         foreach ($rel in $slorels)
         {
             $relobj = $rel.TargetObject
             Write-Host "Related Object from SCSM 2012 $($relobj.displayname) for SLO $($slo.displayname)"
 
-                     
             $relclass = Get-SCSMRelationship -id $rel.RelationshipId -ComputerName $sm12server
             Write-Host $relclass
 
-
+# Seems redundant code here.  
+<#
+       
             $targetclass = Get-SCSMClass -id $relclass.Target.Type.id -ComputerName $sm12server
             Write-Host $targetclass.DisplayName
             
             $sm12target = Get-SCSMClassInstance -class $targetclass -ComputerName $sm12server `
                             | ? displayname -eq $($relobj.displayname)
+#>
 
+            $sm12target = $relobj
 # Need to get the real class since the previous one from relationship is abstract.                 
             $targetclass = Get-SCSMClass -Instance $sm12target
 
 
+# The 'Target' and 'Warning Threshold' objects have some special relationshiop with SLO, similar as Manual Activity 
+# to Service Request. They need to be created directly with relationship. 
             if (($relclass.DisplayName -eq 'Target') -or ($relclass.DisplayName -eq 'Warning Threshold'))
             {
                 
@@ -105,27 +144,18 @@ foreach ($slo in $SLOs)
                 New-SCRelationshipInstance -RelationshipClass $relclass -Source $sm19SLO -TargetClass $targetclass `
                          -TargetProperty $targetproperty -ComputerName $sm19server 
             }
+ # Other related objects can be attached with relationship. 
             else
             {
                 $sm19targetobj = Get-SCSMClassInstance -Class $targetclass -ComputerName $sm19server `
                                 | ? Id -eq $($sm12target.id)
                 Write-Host "Get same target object on SCSM 2019 $($sm19targetobj.DisplayName)"
 
-            
-
-            New-SCRelationshipInstance -RelationshipClass $relclass -Source $sm19SLO -Target $sm19targetobj `
+                New-SCRelationshipInstance -RelationshipClass $relclass -Source $sm19SLO -Target $sm19targetobj `
                               -ComputerName $sm19server
 
             }
-
             Write-Host
-
         }
-
-
-
-
-
     }
-
 }
