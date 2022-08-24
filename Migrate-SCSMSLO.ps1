@@ -2,22 +2,15 @@
 
 Pre-requisites: 
 
-1. Workitem Queues must be migrated to SCSM 2019 using MP import
+1. Workitem Queues must be migrated to SCSM using MP import
 2. Calendar objects must be migrated. A simple Orchestrator runbook is created for this. 
 3. Metric objects must be migrated. A simple Orchestrator runbook is created for this. 
-
-I have created an Orchestrator Runbook to migrate SLO, but System.SLA.Group and System.SLA.WorkflowTarget 
-are group object, which needs to select specific Related Claess name in Get Reletionship activity. 
-
-Powershell script may help to resolve this issue with New-SCRelationshipInstance 
 
 Here is how the script works:
 
 1. Get SLO from SCSM 2012 R2 with all related objects
 2. Create SLO in SCSM 2019
-3. Create all related relationships
-
-
+3. Create all relationships based on existing objects in SCSM 2012 R2
 
 
 
